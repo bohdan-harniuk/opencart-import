@@ -88,15 +88,7 @@ class CategoryImport extends Model implements ModelInterface {
         $className = $classArray[count($classArray) - 1];
         $this->mapper = $mapper
             ->setFileName($className . '.json')
-            ->setInitialData(
-                [[
-                    'system_id' => 1,
-                    'store_id'  => 60
-                ],
-                [
-                    'system_id' => 0,
-                    'store_id'  => 61
-                ]])
+            ->setInitialData([])
             ->readData();
 
         $this->setDataSettingsFormat([
@@ -220,7 +212,9 @@ class CategoryImport extends Model implements ModelInterface {
             if (in_array($field, $this->isNeedToEscape)) {
                 $value = $this->db->escape(htmlspecialchars($readedValue, ENT_QUOTES));
             }
-            $this->{$this::MODEL_2DATA_SCHEMA[$this->modelToReadedDataSchema[$field]]} = $value;
+            if (key_exists($field, $this->modelToReadedDataSchema)) {
+                $this->{$this::MODEL_2DATA_SCHEMA[$this->modelToReadedDataSchema[$field]]} = $value;
+            }
         }
         if ($category_id = $this->categoryExist()) {
             $this->updateData($category_id);
@@ -231,7 +225,11 @@ class CategoryImport extends Model implements ModelInterface {
 
     private function insertData() {
         $sql  = "INSERT INTO " . DB_PREFIX . "category SET";
-        $sql .= " `image` = '" . $this->image . "',";
+        if (!empty($this->image)) {
+            $sql .= " `image` = 'catalog/category/" . $this->image . "',";
+        } else {
+            $sql .= " `image` = " . $this->image . "',";
+        }
         $sql .= " `parent_id` = '" . (int)$this->getCategoryIdBySystemId($this->parentId) . "',";
         $sql .= " `top` = '" . $this->top . "',";
         $sql .= " `column` = '" . $this->column . "',";
@@ -339,7 +337,7 @@ class CategoryImport extends Model implements ModelInterface {
             return $category_id;
         } else {
             // TODO: throw an Exception
-            return false;
+            return 0;
         }
     }
 
@@ -355,12 +353,14 @@ class CategoryImport extends Model implements ModelInterface {
         $sql .= " category_id = '" . $parent_id . "' ORDER BY `level` ASC";
         $result[] = $this->db->select($sql);
         foreach ($result as $element) {
-            $sql = "INSERT INTO `" . DB_PREFIX . "category_path` SET";
-            $sql .= " `category_id` = '" . (int)$category_id . "',";
-            $sql .= " `path_id` = '" . (int)$element['path_id'] . "',";
-            $sql .= " `level` = '" . (int)$level . "'";
-            $this->db->query($sql);
-            $level++;
+            if (!empty($element)) {
+                $sql = "INSERT INTO `" . DB_PREFIX . "category_path` SET";
+                $sql .= " `category_id` = '" . (int)$category_id . "',";
+                $sql .= " `path_id` = '" . (int)$element['path_id'] . "',";
+                $sql .= " `level` = '" . (int)$level . "'";
+                $this->db->query($sql);
+                $level++;
+            }
         }
         $sql = "INSERT INTO `" . DB_PREFIX . "category_path` SET";
         $sql .= " `category_id` = '" . (int)$category_id . "',";

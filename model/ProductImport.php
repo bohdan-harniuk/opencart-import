@@ -13,7 +13,7 @@ use NewImport\Persistence\MapperInterface;
  */
 
 class ProductImport extends Model implements ModelInterface {
-    private $id;  /// import id
+    private $productId;  /// import id
     private $model;
     private $sku;
     private $upc;
@@ -214,6 +214,7 @@ class ProductImport extends Model implements ModelInterface {
         }
         foreach ($fields as $field => $dataField) {
             $this->modelToReadedDataSchema[$dataField] = $field;
+            
         }
     }
 
@@ -251,7 +252,12 @@ class ProductImport extends Model implements ModelInterface {
             if (in_array($field, $this->isNeedToEscape)) {
                 $value = $this->db->escape(htmlspecialchars($readedValue, ENT_QUOTES));
             }
-            $this->{$this->convertData2ModelField($this->modelToReadedDataSchema[$field])} = $value;
+            if (key_exists($field, $this->modelToReadedDataSchema)) {
+                $field = $this->convertData2ModelField($this->modelToReadedDataSchema[$field]);
+                if (property_exists($this, $field)) {
+                    $this->{$field} = $value;
+                }
+            }
         }
         if ($product_id = $this->productExist()) {
             $this->updateData($product_id);
@@ -259,10 +265,12 @@ class ProductImport extends Model implements ModelInterface {
             $this->insertData();
         }
     }
+    
+    private $modelAutoIncrement = 0;
 
     private function insertData() {
         $sql  = "INSERT INTO " . DB_PREFIX . "product SET";
-        $sql .= " `model` = '" . $this->model . "',";
+        $sql .= " `model` = 'M" . $this->getId() . "',";
         $sql .= " `sku` = '" . $this->sku . "',";
         $sql .= " `upc` = '" . $this->upc . "',";
         $sql .= " `ean` = '" . $this->ean . "',";
@@ -272,7 +280,7 @@ class ProductImport extends Model implements ModelInterface {
         $sql .= " `location` = '" . $this->location . "',";
         $sql .= " `quantity` = '" . (int)$this->quantity . "',";
         $sql .= " `stock_status_id` = '" . (int)$this->stockStatusId . "',";
-        $sql .= " `image` = '" . $this->image . "',";
+        $sql .= " `image` = 'catalog/products/" . $this->image . "',";
         $sql .= " `manufacturer_id` = '" . (int)$this->manufacturerId . "',";
         $sql .= " `shipping` = '" . (int)$this->shipping . "',";
         $sql .= " `price` = '" . (float)$this->price . "',";
@@ -292,11 +300,6 @@ class ProductImport extends Model implements ModelInterface {
         $sql .= " `viewed` = '" . (int)$this->viewed . "',";
         $sql .= " `date_added` = '" . $this->dateAdded . "',";
         $sql .= " `date_modified` = '" . $this->dateModified . "';";
-//        if ($this->getInstanceMapType() == '1s_id') {
-//            $sql .= ", `1s_id` = '" . $this->id . "';";
-//        } else {
-//            $sql .= ";";
-//        }
         $this->db->query($sql);
 
         $product_id = $this->db->getLastId();
@@ -335,7 +338,7 @@ class ProductImport extends Model implements ModelInterface {
         }
 
         if ($this->getInstanceMapType() == 'system_id') {
-            $this->mapper->addMatch($this->id, $product_id);
+            $this->mapper->addMatch($this->getId(), $product_id);
 
         } else {
             $identificator = $this->{$this->convertData2ModelField($this->getInstanceMapType())};
@@ -344,12 +347,6 @@ class ProductImport extends Model implements ModelInterface {
     }
 
     private function updateData($product_id) {
-//        if ($this->getInstanceMapType() == 'system_id') {
-//            $identificator = $this->id;
-//        } else {
-//            $identificator = $this->convertData2ModelField($this->getInstanceMapType());
-//        }
-
         if ($fields2Update = $this->isNeedToUpdate('product')) {
             $sql  = "UPDATE " . DB_PREFIX . "product SET";
             foreach ($fields2Update as $field) {
@@ -358,7 +355,6 @@ class ProductImport extends Model implements ModelInterface {
             if ($sql[strlen($sql) - 1] == ',') {
                 $sql = substr($sql, 0, strlen($sql) - 1);
             }
-//            $sql .= " WHERE `" . $this->getInstanceMapType() . "` = '" . $this->{$identificator} . "';";
             $sql .= " WHERE `product_id` = '" . $product_id . "';";
             $this->db->query($sql);
         }
@@ -390,12 +386,10 @@ class ProductImport extends Model implements ModelInterface {
 
     private function productExist() {
         if ($this->getInstanceMapType() == 'system_id') {
-            $identificator = $this->id;
+            $identificator = $this->getId();
         } else {
             $identificator = $this->{$this->convertData2ModelField($this->getInstanceMapType())};
         }
-//        $sql = "SELECT * FROM " . DB_PREFIX . "product WHERE `" . $this->getInstanceMapType() . "` = '" . $this->{$identificator} . "';";
-//        $product = $this->db->select($sql);
         $product_id = $this->mapper->getStoreId($identificator);
         if ($product_id) {
             return $product_id;
@@ -464,6 +458,11 @@ class ProductImport extends Model implements ModelInterface {
         $rus = array('quot;', '/','%','&','?',' ','А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ъ', 'Ы', 'Ь', 'Э', 'Ю', 'Я', 'а', 'б', 'в', 'г', 'д', 'е', 'ё', 'ж', 'з', 'и', 'й', 'к', 'л', 'м', 'н', 'о', 'п', 'р', 'с', 'т', 'у', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ъ', 'ы', 'ь', 'э', 'ю', 'я','і','ї','ґ','є','І','Ї','Ґ','Є','!',',','-','"','\'');
         $lat = array('_', '_0','_1','_2','_3','_','A', 'B', 'V', 'G', 'D', 'E', 'E', 'Gh', 'Z', 'I', 'Y', 'K', 'L', 'M', 'N', 'O', 'P', 'R', 'S', 'T', 'U', 'F', 'H', 'C', 'Ch', 'Sh', 'Sch', 'Y', 'Y', 'Y', 'E', 'Yu', 'Ya', 'a', 'b', 'v', 'g', 'd', 'e', 'e', 'gh', 'z', 'i', 'y', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'f', 'h', 'c', 'ch', 'sh', 'sch', 'y', 'y', 'y', 'e', 'yu', 'ya','i','yi','gg','ye','I','YI','GG','YE','_','_','_','_','_');
         return str_replace($rus, $lat, $str);
+    }
+    
+    public function getId()
+    {
+        return $this->productId;
     }
 
 }
