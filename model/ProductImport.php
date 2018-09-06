@@ -47,7 +47,7 @@ class ProductImport extends Model implements ModelInterface {
 
     private $languageId;
     private $name;
-    private $descrition;
+    private $description;
     private $tag;
     private $metaTitle;
     private $metaH1;
