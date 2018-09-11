@@ -308,7 +308,7 @@ class ProductImport extends Model implements ModelInterface {
         $sql .= " `product_id` = '" . (int)$product_id . "',";
         $sql .= " `language_id` = '" . (int)$this->languageId . "',";
         $sql .= " `name` = '" . $this->name . "',";
-        $sql .= " `description` = '" . $this->descrition . "',";
+        $sql .= " `description` = '" . $this->description . "',";
         $sql .= " `tag` = '" . $this->tag . "',";
         $sql .= " `meta_title` = '" . $this->metaTitle . "',";
         $sql .= " `meta_h1` = '" . $this->metaH1 . "',";
@@ -327,7 +327,7 @@ class ProductImport extends Model implements ModelInterface {
                 $sql .= " `product_id` = '" . (int)$product_id . "',";
                 $sql .= " `language_id` = '" . (int)$language_id . "',";
                 $sql .= " `name` = '" . $this->name . "',";
-                $sql .= " `description` = '" . $this->descrition . "',";
+                $sql .= " `description` = '" . $this->description . "',";
                 $sql .= " `tag` = '" . $this->tag . "',";
                 $sql .= " `meta_title` = '" . $this->metaTitle . "',";
                 $sql .= " `meta_h1` = '" . $this->metaH1 . "',";
