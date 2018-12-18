@@ -30,6 +30,15 @@ class Csv implements ReaderInterface
                 if (count($header) == count($values)) {
                     $entry = array_combine($header, $values);
                     $this->data[] = $entry;
+                } else {
+                    $delta = count($header) - count($values);
+                    for ($i = 1; $i <= $delta; $i++) {
+                        $values[] = '';
+                    }
+                    if (count($header) == count($values)) {
+                        $entry = array_combine($header, $values);
+                        $this->data[] = $entry;
+                    }
                 }
             }
             fclose($handle);
