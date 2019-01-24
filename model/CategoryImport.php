@@ -228,7 +228,7 @@ class CategoryImport extends Model implements ModelInterface {
         if (!empty($this->image)) {
             $sql .= " `image` = 'catalog/category/" . $this->image . "',";
         } else {
-            $sql .= " `image` = " . $this->image . "',";
+            $sql .= " `image` = '" . $this->image . "',";
         }
         $sql .= " `parent_id` = '" . (int)$this->getCategoryIdBySystemId($this->parentId) . "',";
         $sql .= " `top` = '" . $this->top . "',";

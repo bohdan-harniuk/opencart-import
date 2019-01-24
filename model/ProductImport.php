@@ -28,6 +28,7 @@ class ProductImport extends Model implements ModelInterface {
     private $manufacturerId;
     private $shipping;
     private $price;
+    private $currency;
     private $points;
     private $taxClassId;
     private $dateAvailable;
@@ -115,12 +116,13 @@ class ProductImport extends Model implements ModelInterface {
                 'isbn'              => '',
                 'mpn'               => '',
                 'location'          => '',
-                'quantity'          => 0,
+                'quantity'          => 10,
                 'stock_status_id'   => 0,  // required
                 'image'             => 'placeholder.png',
                 'manufacturer_id'   => 0,
                 'shipping'          => 1,
                 'price'             => 0.0,
+                'currency'          => 'USD',
                 'points'            => 0,
                 'tax_class_id'      => 0,
                 'date_available'    => '',
@@ -160,6 +162,17 @@ class ProductImport extends Model implements ModelInterface {
             $modelField .= ucfirst($part);
         }
         return lcfirst($modelField);
+    }
+    
+    public function currency_validation($price, $currency) {
+        if ($currency === 'USD') {
+            return $price;
+        } elseif ($currency === 'UAH') {
+            $query = $this->db->select("SELECT `value` FROM " . DB_PREFIX . "currency WHERE code = '" . $currency . "'");
+            $convert_price = $price / $query['value'];
+            return $convert_price;
+        }
+        return $price;
     }
 
     public function setDataSettings(array $settings)
@@ -283,7 +296,7 @@ class ProductImport extends Model implements ModelInterface {
         $sql .= " `image` = 'catalog/products/" . $this->image . "',";
         $sql .= " `manufacturer_id` = '" . (int)$this->manufacturerId . "',";
         $sql .= " `shipping` = '" . (int)$this->shipping . "',";
-        $sql .= " `price` = '" . (float)$this->price . "',";
+        $sql .= " `price` = '" . $this->currency_validation((float)$this->price, $this->currency) . "',";
         $sql .= " `points` = '" . (int)$this->points . "',";
         $sql .= " `tax_class_id` = '" . (int)$this->taxClassId . "',";
         $sql .= " `date_available` = '" . $this->dateAvailable . "',";
@@ -308,7 +321,7 @@ class ProductImport extends Model implements ModelInterface {
         $sql .= " `product_id` = '" . (int)$product_id . "',";
         $sql .= " `language_id` = '" . (int)$this->languageId . "',";
         $sql .= " `name` = '" . $this->name . "',";
-        $sql .= " `description` = '" . $this->description . "',";
+        $sql .= " `description` = '" . addslashes($this->description) . "',";
         $sql .= " `tag` = '" . $this->tag . "',";
         $sql .= " `meta_title` = '" . $this->metaTitle . "',";
         $sql .= " `meta_h1` = '" . $this->metaH1 . "',";
@@ -320,6 +333,7 @@ class ProductImport extends Model implements ModelInterface {
         $this->setProductStore($product_id);
         $this->setProductLayout($product_id);
         $this->setProductMainCategory($product_id, $this->categoryId);
+        $this->setProductCategoryFromMain($product_id, $this->categoryId);
 
         if ($this->otherStoreLanguages !== false) {
             foreach ($this->otherStoreLanguages as $language_id) {
@@ -327,7 +341,7 @@ class ProductImport extends Model implements ModelInterface {
                 $sql .= " `product_id` = '" . (int)$product_id . "',";
                 $sql .= " `language_id` = '" . (int)$language_id . "',";
                 $sql .= " `name` = '" . $this->name . "',";
-                $sql .= " `description` = '" . $this->description . "',";
+                $sql .= " `description` = '" . addslashes($this->description) . "',";
                 $sql .= " `tag` = '" . $this->tag . "',";
                 $sql .= " `meta_title` = '" . $this->metaTitle . "',";
                 $sql .= " `meta_h1` = '" . $this->metaH1 . "',";
@@ -407,6 +421,25 @@ class ProductImport extends Model implements ModelInterface {
             return false;
         }
     }
+    
+    private function getParentCategory($category_id, $product_id)
+    {
+        $parent_category = false;
+        $sql = "SELECT COUNT(category_id) FROM " . DB_PREFIX .  "category_path WHERE `category_id` = " . (int)$category_id;
+        $path_count = $this->db->select($sql);
+        if ($path_count > 1) {
+            $sql = "SELECT cp.path_id as parent_category FROM " . DB_PREFIX . "category_path cp";
+            $sql .= " LEFT JOIN " . DB_PREFIX . "product_to_category p2c ON cp.category_id = p2c.category_id WHERE";
+            $sql .= " cp.`category_id` = " . (int)$category_id . " AND cp.`level` = 0 AND p2c.`product_id` = " . (int)$product_id . " ORDER BY level ASC LIMIT 1;";
+    
+            try {
+                $parent_category = $this->db->select($sql)['parent_category'];
+            } catch (\Exception $exception) {
+                // TODO: throw an Exception
+            }
+        }
+        return $parent_category ? $parent_category : false;
+    }
 
     private function setProductMainCategory($product_id, $systemCategoryId)
     {
@@ -417,6 +450,26 @@ class ProductImport extends Model implements ModelInterface {
             $sql .= " `category_id` = '" . (int)$category_id . "',";
             $sql .= " `main_category` = '1';";
             $this->db->query($sql);
+        } else {
+            // TODO: throw an Exception
+        }
+    }
+    
+    private function setProductCategoryFromMain($product_id, $systemCategoryId)
+    {
+        if ($this->categoryMappingFilename !== null) {
+            if ($systemCategoryId == '37351793') {
+                $a = 'Hello';
+            }
+            $category_id = $this->getCategoryIdBySystemId($this->categoryMappingFilename, $systemCategoryId);
+            $category_id = $this->getParentCategory($category_id, $product_id);
+            if ($category_id) {
+                $sql  = "INSERT INTO " . DB_PREFIX . "product_to_category SET";
+                $sql .= " `product_id` = '" . (int)$product_id . "',";
+                $sql .= " `category_id` = '" . (int)$category_id . "',";
+                $sql .= " `main_category` = '0';";
+                $this->db->query($sql);
+            }
         } else {
             // TODO: throw an Exception
         }
