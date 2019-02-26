@@ -1,6 +1,7 @@
 <?php
 namespace NewImport;
 use NewImport\Logger\Logger;
+use NewImport\Model\BrandImport;
 use NewImport\Model\CategoryImport;
 use NewImport\Model\OptionImport;
 use NewImport\Model\ProductImport;
@@ -16,6 +17,7 @@ require_once __DIR__ . '/persistence/mappingadapter.php';
 
 class Import {
 
+    private $brand;
     private $category;
     private $color;
     private $size;
@@ -32,6 +34,7 @@ class Import {
         ReaderInterface $reader,
         $logger_mode = null
     ) {
+        $this->brand = BASE_DIR . BRAND_FILENAME;
         $this->category = BASE_DIR .  CATEGORY_FILENAME;
         $this->color = BASE_DIR . COLOR_FILENAME;
         $this->size = BASE_DIR . SIZE_FILENAME;
@@ -54,6 +57,26 @@ class Import {
     public function startImport()
     {
         $this->logger->output(sprintf("Імпорт запущено %s <br/>", date("Y-m-d H:i:s")));
+        
+        // Brand Import
+        $brand = new BrandImport($this->logger, $this->mapper);
+        $brandImport = $brand
+            ->setReader($this->reader)
+            ->read($this->brand)
+            ->setDatabase($this->db)
+            ->setDataSettings([
+               'fields' => [
+                   'manufacturer_id' => 'код элемента',
+                   'name'            => ' наименование',
+               ],
+                'language_id' => 3,
+                'other_store_languages' => [1],
+                'data2update'   => ['name']
+            ])
+            ->setGeneralSettingObject($this->settings)
+            ->importData();
+        echo $brandImport->getImportResult();
+
         /// Category Import
         $category = new CategoryImport($this->logger, $this->mapper);
         $categoryImport = $category
